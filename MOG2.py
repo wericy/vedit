@@ -47,20 +47,15 @@ def set_orientation(imgin, cx, cy, box):
 
 def proximity_detect(circles, hx, hy):
     # circles: [[[x_0, y_0], radius_0]]...[[x_n, y_n], radius_n]]
-    for idx, circle in [circles]:
-        # print circle
-        print idx
-        dist = np.linalg.norm(np.array(circle[0]) - np.array([hx, hy]))
-        # print dist
-        # print "radius: ", circle[1]
-        if dist > circle[1]:
-            return False, None
-        else:
+    for idx, [coordinates, radius] in enumerate(circles):
+        dist = np.linalg.norm(np.array(coordinates) - np.array([hx, hy]))
+        if dist < radius:
             return True, idx
+    return False, None
 
 
 def track_obj(cv2_video_capture, obj_list):
-    print obj_list
+    # print obj_list
     fgbg = cv2.createBackgroundSubtractorKNN(history=700)
     counter = 0
     head_voter = 0
@@ -112,9 +107,10 @@ def track_obj(cv2_video_capture, obj_list):
                             myhead_x = head2_x
                             myhead_y = head2_y
                         cv2.circle(imgin, (myhead_x, myhead_y), 3, (102, 204, 255), 4)
-                        # res, obj_index = proximity_detect(obj_list, head_x, head_y)
-                        # if res:
-                        #     print "detect"
+                        res, obj_index = proximity_detect(obj_list, head_x, head_y)
+                        if res:
+                            print "detect"
+                            cv2.circle(imgin, tuple(obj_list[obj_index][0]), obj_list[obj_index][1], (0, 255, 0), -1)
                         counter = 0
                         head_voter = 0
                         # cv2.circle(imgin, (head_x, head_y), 3, (102, 204, 255), 4)
@@ -185,6 +181,7 @@ def object_selector(video_capture):
             if k == ord("c"):
                 reset_state = True
             elif k == ord(" "):
+                cv2.destroyWindow('image')
                 return target_obj
             elif k == 27:
                 break
