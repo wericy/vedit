@@ -2,6 +2,7 @@ import os
 import numpy as np
 import cv2
 import math
+import sys
 
 
 def largest_contour(contours):
@@ -47,8 +48,11 @@ def set_orientation(imgin, cx, cy, box):
 
 def proximity_detect(circles, hx, hy):
     # circles: [[[x_0, y_0], radius_0]]...[[x_n, y_n], radius_n]]
-    for idx, [coordinates, radius] in enumerate(circles):
-        dist = np.linalg.norm(np.array(coordinates) - np.array([hx, hy]))
+    dist1, dist0 = 0, 0
+    choice = 5
+    for idx, [coordinate, radius] in enumerate(circles):
+        dist = np.linalg.norm(np.array(coordinate) - np.array([hx, hy]))
+        print coordinate, [hx, hy], "Dist1: ", dist
         if dist < radius:
             return True, idx
     return False, None
@@ -107,9 +111,10 @@ def track_obj(cv2_video_capture, obj_list):
                             myhead_x = head2_x
                             myhead_y = head2_y
                         cv2.circle(imgin, (myhead_x, myhead_y), 3, (102, 204, 255), 4)
-                        res, obj_index = proximity_detect(obj_list, head_x, head_y)
+                        res, obj_index = proximity_detect(obj_list, myhead_x, myhead_y)
                         if res:
-                            print "detect"
+                            # print "detect"
+                            print obj_list[obj_index]
                             cv2.circle(imgin, tuple(obj_list[obj_index][0]), obj_list[obj_index][1], (0, 255, 0), -1)
                         counter = 0
                         head_voter = 0
