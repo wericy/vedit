@@ -2,7 +2,9 @@ import os
 import numpy as np
 import cv2
 import math
-import sys
+import matplotlib.pyplot as plt
+import csv
+import plotly.plotly as py
 
 
 def largest_contour(contours):
@@ -52,12 +54,16 @@ def proximity_detect(circles, hx, hy):
     return False, None
 
 
+frame_markedlist = []
 def track_obj(cv2_video_capture, obj_list):
     # print obj_list
     fgbg = cv2.createBackgroundSubtractorKNN(history=700)
     counter = 0
     head_voter = 0
     frame_no = 0
+    # voting scheme
+    totalnum = 1
+    minsupport = 1
 
     while (1):
         ret, frame = cv2_video_capture.read()
@@ -81,8 +87,8 @@ def track_obj(cv2_video_capture, obj_list):
                     box = np.int0(box)
                     (head_x, head_y), (head2_x, head2_y), vote = set_orientation(imgin, cx, cy, box)
                     head_voter = head_voter + vote
-                    if counter >= 3:
-                        if head_voter > 2:
+                    if counter >= totalnum:
+                        if head_voter >= minsupport:
                             myhead_x = head_x
                             myhead_y = head_y
                         else:
@@ -92,8 +98,13 @@ def track_obj(cv2_video_capture, obj_list):
                         res, obj_index = proximity_detect(obj_list, myhead_x, myhead_y)
                         if res:
                             cv2.circle(imgin, tuple(obj_list[obj_index][0]), obj_list[obj_index][1], (0, 255, 0), -1)
+                            frame_markedlist.append(1)
+                        else:
+                            frame_markedlist.append(0)
                         counter = 0
                         head_voter = 0
+                    else:
+                        frame_markedlist.append(0)
             except IndexError:
                 print "Index Error: Possible loss of tracking"
             cv2.putText(imgin, "Frame No. " + str(frame_no), (30, 30),
@@ -102,11 +113,12 @@ def track_obj(cv2_video_capture, obj_list):
             counter = counter + 1
             frame_no = frame_no + 1
             k = cv2.waitKey(1) & 0xff
-            if k == 27:
+            if k == ord("d"):
+                break
+            elif k == 27:
                 break
         else:
             break
-
     cap.release()
     cv2.destroyAllWindows()
 
@@ -170,3 +182,15 @@ if __name__ == '__main__':
     track_obj(cap, exp_obj)
     cap.release()
     cv2.destroyAllWindows()
+
+    y = frame_markedlist
+    # N = len(y)
+    # x = range(N)
+    # width = 1 / 1.5
+    # plt.bar(x, y, width, color="blue")
+    #
+    # fig = plt.gcf()
+    # plot_url = py.plot_mpl(fig, filename='mpl-basic-bar')
+    with open("three.csv", 'wb') as myfile:
+        wr = csv.writer(myfile, quoting=csv.QUOTE_ALL)
+        wr.writerow(frame_markedlist)
