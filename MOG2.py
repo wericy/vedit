@@ -141,7 +141,8 @@ def track_obj(working_mode, cv2_video_capture, obj_list):  # working mode: 0 for
                     else:
                         frame_markedlist.append(0)
             except IndexError:
-                print "Index Error: Possible loss of tracking"
+                pass
+                # print "Index Error: Possible loss of tracking"
             cv2.putText(frame, "Frame No. " + str(frame_no), (30, 30),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.8, (200, 200, 250), 1, 255);
             cv2.imshow('frame', frame)
@@ -154,6 +155,7 @@ def track_obj(working_mode, cv2_video_capture, obj_list):  # working mode: 0 for
                 break
         else:
             break
+    print "total: ", frame_no
     cap.release()
     cv2.destroyAllWindows()
 
@@ -209,7 +211,8 @@ def object_selector(video_capture):
 if __name__ == '__main__':
     path = os.path.dirname(__file__)
     normpath = os.path.normpath(path)
-    cap = cv2.VideoCapture('out2.avi')
+    file_name = 'out3.avi'
+    cap = cv2.VideoCapture(file_name)
     ret, imgsample = cap.read()
     stored_frame = imgsample.copy()
 
@@ -220,6 +223,7 @@ if __name__ == '__main__':
     print "none: ", frame_markedlist.count(9)
     print "obj1: ", frame_markedlist.count(0)
     print "obj2: ", frame_markedlist.count(1)
+
     # y = frame_markedlist
     # N = len(y)
     # x = range(N)
@@ -228,6 +232,6 @@ if __name__ == '__main__':
     #
     # fig = plt.gcf()
     # plot_url = py.plot_mpl(fig, filename='mpl-basic-bar')
-    # with open("out1.csv", 'wb') as myfile:
-    #     wr = csv.writer(myfile, quoting=csv.QUOTE_ALL)
-    #     wr.writerow(frame_markedlist)
+    with open("out_f.csv", 'wb') as myfile:
+        wr = csv.writer(myfile, quoting=csv.QUOTE_ALL)
+        wr.writerow(frame_markedlist)
