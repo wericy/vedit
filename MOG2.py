@@ -94,10 +94,10 @@ def track_obj(cv2_video_capture, obj_list):
                         else:
                             myhead_x = head2_x
                             myhead_y = head2_y
-                        cv2.circle(imgin, (myhead_x, myhead_y), 3, (102, 204, 255), 4)
+                        # cv2.circle(imgin, (myhead_x, myhead_y), 3, (102, 204, 255), 4)
                         res, obj_index = proximity_detect(obj_list, myhead_x, myhead_y)
                         if res:
-                            cv2.circle(imgin, tuple(obj_list[obj_index][0]), obj_list[obj_index][1], (0, 255, 0), -1)
+                            # cv2.circle(imgin, tuple(obj_list[obj_index][0]), obj_list[obj_index][1], (0, 255, 0), -1)
                             frame_markedlist.append(1)
                         else:
                             frame_markedlist.append(0)
@@ -107,16 +107,16 @@ def track_obj(cv2_video_capture, obj_list):
                         frame_markedlist.append(0)
             except IndexError:
                 print "Index Error: Possible loss of tracking"
-            cv2.putText(imgin, "Frame No. " + str(frame_no), (30, 30),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (200, 200, 250), 1, 255);
-            cv2.imshow('frame', imgin)
+            # cv2.putText(imgin, "Frame No. " + str(frame_no), (30, 30),
+            #             cv2.FONT_HERSHEY_SIMPLEX, 0.8, (200, 200, 250), 1, 255);
+            # cv2.imshow('frame', imgin)
             counter = counter + 1
             frame_no = frame_no + 1
-            k = cv2.waitKey(1) & 0xff
-            if k == ord("d"):
-                break
-            elif k == 27:
-                break
+            # k = cv2.waitKey(1) & 0xff
+            # if k == ord("d"):
+            #     break
+            # elif k == 27:
+            #     break
         else:
             break
     cap.release()
@@ -191,6 +191,6 @@ if __name__ == '__main__':
     #
     # fig = plt.gcf()
     # plot_url = py.plot_mpl(fig, filename='mpl-basic-bar')
-    with open("three.csv", 'wb') as myfile:
+    with open("four.csv", 'wb') as myfile:
         wr = csv.writer(myfile, quoting=csv.QUOTE_ALL)
         wr.writerow(frame_markedlist)
