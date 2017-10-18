@@ -54,7 +54,26 @@ def proximity_detect(circles, hx, hy):
     return False, None
 
 
+def color_track(img_colorsep):
+    hsv = hsv = cv2.cvtColor(img_colorsep, cv2.COLOR_BGR2HSV)
+    color_mask = cv2.inRange(hsv, (0, 0, 0, 0), (180, 255, 60, 0));
+    color_res = cv2.bitwise_and(img_colorsep, img_colorsep, mask=color_mask)
+    maskblur = cv2.blur(color_mask, (7, 7))
+    ret, thresh = cv2.threshold(maskblur, 128, 255, cv2.THRESH_BINARY)
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (15, 15))
+    opening = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel)
+    im2, contours, hierarchy = cv2.findContours(opening, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    _, c_index = largest_contour(contours)
+    cv2.drawContours(img_colorsep, contours, c_index, (200, 0, 100), 2)
+    cv2.imshow('framedd', img_colorsep)
+    cv2.imshow('mask', color_mask)
+    cv2.imshow('res', color_res)
+    return color_res
+
+
 frame_markedlist = []
+
+
 def track_obj(cv2_video_capture, obj_list):
     # print obj_list
     fgbg = cv2.createBackgroundSubtractorKNN(history=700)
@@ -67,6 +86,7 @@ def track_obj(cv2_video_capture, obj_list):
 
     while (1):
         ret, frame = cv2_video_capture.read()
+        out_test_frame = color_track(frame)
         if ret:
             imgin = cv2.blur(frame, (15, 15))
             fgmask = fgbg.apply(imgin)
@@ -94,29 +114,32 @@ def track_obj(cv2_video_capture, obj_list):
                         else:
                             myhead_x = head2_x
                             myhead_y = head2_y
-                        # cv2.circle(imgin, (myhead_x, myhead_y), 3, (102, 204, 255), 4)
+                        cv2.circle(imgin, (myhead_x, myhead_y), 3, (102, 204, 255), 4)
                         res, obj_index = proximity_detect(obj_list, myhead_x, myhead_y)
                         if res:
-                            # cv2.circle(imgin, tuple(obj_list[obj_index][0]), obj_list[obj_index][1], (0, 255, 0), -1)
-                            frame_markedlist.append(1)
+                            cv2.circle(imgin, tuple(obj_list[obj_index][0]), obj_list[obj_index][1], (0, 255, 0), -1)
+                            frame_markedlist.append(obj_index)
                         else:
-                            frame_markedlist.append(0)
+                            frame_markedlist.append(9)
                         counter = 0
                         head_voter = 0
+                        cv2.circle(imgin, (head_x, head_y), 3, (102, 204, 255), 4)
+                        cv2.drawContours(imgin, [box], 0, (200, 0, 100), 2)
+                        cv2.ellipse(imgin, ellipse, (0, 255, 0), 2)
                     else:
                         frame_markedlist.append(0)
             except IndexError:
                 print "Index Error: Possible loss of tracking"
-            # cv2.putText(imgin, "Frame No. " + str(frame_no), (30, 30),
-            #             cv2.FONT_HERSHEY_SIMPLEX, 0.8, (200, 200, 250), 1, 255);
-            # cv2.imshow('frame', imgin)
+            cv2.putText(imgin, "Frame No. " + str(frame_no), (30, 30),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (200, 200, 250), 1, 255);
+            # cv2.imshow('frame', out_test_frame)
             counter = counter + 1
             frame_no = frame_no + 1
-            # k = cv2.waitKey(1) & 0xff
-            # if k == ord("d"):
-            #     break
-            # elif k == 27:
-            #     break
+            k = cv2.waitKey(1) & 0xff
+            if k == ord("d"):
+                break
+            elif k == 27:
+                break
         else:
             break
     cap.release()
@@ -174,7 +197,7 @@ def object_selector(video_capture):
 if __name__ == '__main__':
     path = os.path.dirname(__file__)
     normpath = os.path.normpath(path)
-    cap = cv2.VideoCapture('video2701.avi')
+    cap = cv2.VideoCapture('out2.avi')
     ret, imgsample = cap.read()
     stored_frame = imgsample.copy()
 
@@ -182,8 +205,10 @@ if __name__ == '__main__':
     track_obj(cap, exp_obj)
     cap.release()
     cv2.destroyAllWindows()
-
-    y = frame_markedlist
+    print "none: ", frame_markedlist.count(9)
+    print "obj1: ", frame_markedlist.count(0)
+    print "obj2: ", frame_markedlist.count(1)
+    # y = frame_markedlist
     # N = len(y)
     # x = range(N)
     # width = 1 / 1.5
@@ -191,6 +216,6 @@ if __name__ == '__main__':
     #
     # fig = plt.gcf()
     # plot_url = py.plot_mpl(fig, filename='mpl-basic-bar')
-    with open("four.csv", 'wb') as myfile:
-        wr = csv.writer(myfile, quoting=csv.QUOTE_ALL)
-        wr.writerow(frame_markedlist)
+    # with open("out1.csv", 'wb') as myfile:
+    #     wr = csv.writer(myfile, quoting=csv.QUOTE_ALL)
+    #     wr.writerow(frame_markedlist)
