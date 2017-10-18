@@ -6,6 +6,9 @@ import matplotlib.pyplot as plt
 import csv
 import plotly.plotly as py
 
+COLOR_TRACKING = 1
+MOTION_TRACKING = 0
+
 
 def largest_contour(contours):
     max_area = 0.0
@@ -64,48 +67,57 @@ def color_track(img_colorsep):
     opening = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel)
     im2, contours, hierarchy = cv2.findContours(opening, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     _, c_index = largest_contour(contours)
-    cv2.drawContours(img_colorsep, contours, c_index, (200, 0, 100), 2)
-    cv2.imshow('framedd', img_colorsep)
-    cv2.imshow('mask', color_mask)
-    cv2.imshow('res', color_res)
-    return color_res
+    # cv2.drawContours(img_colorsep, contours, c_index, (200, 0, 100), 2)
+    # cv2.imshow('framedd', img_colorsep)
+    # cv2.imshow('mask', color_mask)
+    # cv2.imshow('res', color_res)
+    return contours, c_index
+
+
+def motion_tracking(frame):
+    fgbg = cv2.createBackgroundSubtractorKNN(history=700)
+    imgin = cv2.blur(frame, (15, 15))
+    fgmask = fgbg.apply(imgin)
+    maskblur = cv2.blur(fgmask, (7, 7))
+    ret, thresh = cv2.threshold(maskblur, 128, 255, cv2.THRESH_BINARY)
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (15, 15))
+    opening = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel)
+    im2, contours, hierarchy = cv2.findContours(opening, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    _, m_index = largest_contour(contours)
+    return contours, m_index
 
 
 frame_markedlist = []
 
 
-def track_obj(cv2_video_capture, obj_list):
+def track_obj(working_mode, cv2_video_capture, obj_list):  # working mode: 0 for motion tracking, 1 for color tracking
     # print obj_list
-    fgbg = cv2.createBackgroundSubtractorKNN(history=700)
     counter = 0
     head_voter = 0
     frame_no = 0
     # voting scheme
     totalnum = 1
     minsupport = 1
-
     while (1):
         ret, frame = cv2_video_capture.read()
-        out_test_frame = color_track(frame)
         if ret:
-            imgin = cv2.blur(frame, (15, 15))
-            fgmask = fgbg.apply(imgin)
-            maskblur = cv2.blur(fgmask, (7, 7))
-            ret, thresh = cv2.threshold(maskblur, 128, 255, cv2.THRESH_BINARY)
-            kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (15, 15))
-            opening = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel)
-            im2, contours, hierarchy = cv2.findContours(opening, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-            _, index = largest_contour(contours)
             try:
+                if working_mode == 0:
+                    contours, index = motion_tracking(frame)
+                elif working_mode == 1:
+                    contours, index = color_track(frame)
+                else:
+                    print "unknown working mode"
+                    break
                 target_contour = contours[index]
                 if len(target_contour) > 10:  # Need at least 5 points to fit an ellipse
                     # centeroid coordinates
-                    cx, cy = trk_cnt_centroid(imgin, target_contour)
+                    cx, cy = trk_cnt_centroid(frame, target_contour)
                     ellipse = cv2.fitEllipse(target_contour)
                     # enclosing rectangle
                     box = cv2.boxPoints(ellipse)
                     box = np.int0(box)
-                    (head_x, head_y), (head2_x, head2_y), vote = set_orientation(imgin, cx, cy, box)
+                    (head_x, head_y), (head2_x, head2_y), vote = set_orientation(frame, cx, cy, box)
                     head_voter = head_voter + vote
                     if counter >= totalnum:
                         if head_voter >= minsupport:
@@ -114,25 +126,25 @@ def track_obj(cv2_video_capture, obj_list):
                         else:
                             myhead_x = head2_x
                             myhead_y = head2_y
-                        cv2.circle(imgin, (myhead_x, myhead_y), 3, (102, 204, 255), 4)
+                        cv2.circle(frame, (myhead_x, myhead_y), 3, (102, 204, 255), 4)
                         res, obj_index = proximity_detect(obj_list, myhead_x, myhead_y)
                         if res:
-                            cv2.circle(imgin, tuple(obj_list[obj_index][0]), obj_list[obj_index][1], (0, 255, 0), -1)
+                            cv2.circle(frame, tuple(obj_list[obj_index][0]), obj_list[obj_index][1], (0, 255, 0), -1)
                             frame_markedlist.append(obj_index)
                         else:
                             frame_markedlist.append(9)
                         counter = 0
                         head_voter = 0
-                        cv2.circle(imgin, (head_x, head_y), 3, (102, 204, 255), 4)
-                        cv2.drawContours(imgin, [box], 0, (200, 0, 100), 2)
-                        cv2.ellipse(imgin, ellipse, (0, 255, 0), 2)
+                        cv2.circle(frame, (head_x, head_y), 3, (102, 204, 255), 4)
+                        cv2.drawContours(frame, [box], 0, (200, 0, 100), 2)
+                        cv2.ellipse(frame, ellipse, (0, 255, 0), 2)
                     else:
                         frame_markedlist.append(0)
             except IndexError:
                 print "Index Error: Possible loss of tracking"
-            cv2.putText(imgin, "Frame No. " + str(frame_no), (30, 30),
+            cv2.putText(frame, "Frame No. " + str(frame_no), (30, 30),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.8, (200, 200, 250), 1, 255);
-            # cv2.imshow('frame', out_test_frame)
+            cv2.imshow('frame', frame)
             counter = counter + 1
             frame_no = frame_no + 1
             k = cv2.waitKey(1) & 0xff
@@ -202,7 +214,7 @@ if __name__ == '__main__':
     stored_frame = imgsample.copy()
 
     exp_obj = object_selector(cap)
-    track_obj(cap, exp_obj)
+    track_obj(COLOR_TRACKING, cap, exp_obj)
     cap.release()
     cv2.destroyAllWindows()
     print "none: ", frame_markedlist.count(9)
