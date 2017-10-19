@@ -2,9 +2,7 @@ import os
 import numpy as np
 import cv2
 import math
-import matplotlib.pyplot as plt
 import csv
-import plotly.plotly as py
 
 COLOR_TRACKING = 1
 MOTION_TRACKING = 0
@@ -22,8 +20,8 @@ def largest_contour(contours):
 
 
 def trk_cnt_centroid(img, contour_in):
-    M = cv2.moments(contour_in)
-    cx, cy = int(M['m10'] / M['m00']), int(M['m01'] / M['m00'])
+    m = cv2.moments(contour_in)
+    cx, cy = int(m['m10'] / m['m00']), int(m['m01'] / m['m00'])
     return cx, cy
 
 
@@ -59,8 +57,8 @@ def proximity_detect(circles, hx, hy):
 
 def color_track(img_colorsep):
     hsv = hsv = cv2.cvtColor(img_colorsep, cv2.COLOR_BGR2HSV)
-    color_mask = cv2.inRange(hsv, (0, 0, 0, 0), (180, 255, 60, 0));
-    color_res = cv2.bitwise_and(img_colorsep, img_colorsep, mask=color_mask)
+    color_mask = cv2.inRange(hsv, (0, 0, 0, 0), (180, 255, 60, 0))
+    # color_res = cv2.bitwise_and(img_colorsep, img_colorsep, mask=color_mask)
     maskblur = cv2.blur(color_mask, (7, 7))
     ret, thresh = cv2.threshold(maskblur, 128, 255, cv2.THRESH_BINARY)
     kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (15, 15))
@@ -87,7 +85,7 @@ def motion_tracking(frame):
     return contours, m_index
 
 
-frame_markedlist = []
+frame_marked_list = []
 
 
 def track_obj(working_mode, cv2_video_capture, obj_list):  # working mode: 0 for motion tracking, 1 for color tracking
@@ -116,7 +114,7 @@ def track_obj(working_mode, cv2_video_capture, obj_list):  # working mode: 0 for
                     ellipse = cv2.fitEllipse(target_contour)
                     # enclosing rectangle
                     box = cv2.boxPoints(ellipse)
-                    box = np.int0(box)
+                    # box = np.int0(box)
                     (head_x, head_y), (head2_x, head2_y), vote = set_orientation(frame, cx, cy, box)
                     head_voter = head_voter + vote
                     if counter >= totalnum:
@@ -126,36 +124,37 @@ def track_obj(working_mode, cv2_video_capture, obj_list):  # working mode: 0 for
                         else:
                             myhead_x = head2_x
                             myhead_y = head2_y
-                        cv2.circle(frame, (myhead_x, myhead_y), 3, (102, 204, 255), 4)
+                        # cv2.circle(frame, (myhead_x, myhead_y), 3, (102, 204, 255), 4)
                         res, obj_index = proximity_detect(obj_list, myhead_x, myhead_y)
                         if res:
-                            cv2.circle(frame, tuple(obj_list[obj_index][0]), obj_list[obj_index][1], (0, 255, 0), -1)
-                            frame_markedlist.append(obj_index)
+                            # cv2.circle(frame, tuple(obj_list[obj_index][0]), obj_list[obj_index][1], (0, 255, 0), -1)
+                            frame_marked_list.append(obj_index)
                         else:
-                            frame_markedlist.append(9)
+                            pass  # no result returned by proximity_detect, track point is not in the selected circle
+                            # frame_marked_list.append(9)
                         counter = 0
                         head_voter = 0
-                        cv2.circle(frame, (head_x, head_y), 3, (102, 204, 255), 4)
-                        cv2.drawContours(frame, [box], 0, (200, 0, 100), 2)
-                        cv2.ellipse(frame, ellipse, (0, 255, 0), 2)
+                        # cv2.circle(frame, (head_x, head_y), 3, (102, 204, 255), 4)
+                        # cv2.drawContours(frame, [box], 0, (200, 0, 100), 2)
+                        # cv2.ellipse(frame, ellipse, (0, 255, 0), 2)
                     else:
-                        frame_markedlist.append(0)
+                        frame_marked_list.append(0)
             except IndexError:
                 pass
                 # print "Index Error: Possible loss of tracking"
-            cv2.putText(frame, "Frame No. " + str(frame_no), (30, 30),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (200, 200, 250), 1, 255);
-            cv2.imshow('frame', frame)
+            # cv2.putText(frame, "Frame No. " + str(frame_no), (30, 30),
+            #             cv2.FONT_HERSHEY_SIMPLEX, 0.8, (200, 200, 250), 1, 255);
+            # cv2.imshow('frame', frame)
             counter = counter + 1
             frame_no = frame_no + 1
-            k = cv2.waitKey(1) & 0xff
-            if k == ord("d"):
-                break
-            elif k == 27:
-                break
+            # k = cv2.waitKey(30) & 0xff
+            # if k == ord("d"):
+            #     break
+            # elif k == 27:
+            #     break
         else:
             break
-    print "total: ", frame_no
+    # print "total: ", frame_no
     cap.release()
     cv2.destroyAllWindows()
 
@@ -176,27 +175,27 @@ def draw_circle(event, x, y, flags, param):
             centerx = (ix - x) ** 2
             centery = (iy - y) ** 2
             radius = int(math.sqrt(centerx + centery))
-            cv2.circle(imgsample, (ix, iy), radius, (0, 255, 0), -1)
+            cv2.circle(img_sample, (ix, iy), radius, (0, 255, 0), -1)
     elif event == cv2.EVENT_LBUTTONUP:
         drawing = False
         centerx = (ix - x) ** 2
         centery = (iy - y) ** 2
         radius = int(math.sqrt(centerx + centery))
-        cv2.circle(imgsample, (ix, iy), radius, (0, 255, 0), -1)
+        cv2.circle(img_sample, (ix, iy), radius, (0, 255, 0), -1)
         target_obj.append([[ix, iy], radius])
 
 
 def object_selector(video_capture):
-    global reset_state, imgsample, stored_frame, target_obj
+    global reset_state, img_sample, stored_frame, target_obj
     cv2.namedWindow('image')
     cv2.setMouseCallback('image', draw_circle)
-    while (1):
+    while 1:
         if reset_state:
-            imgsample = stored_frame.copy()
+            img_sample = stored_frame.copy()
             target_obj = []
             reset_state = False
         else:
-            cv2.imshow('image', imgsample)
+            cv2.imshow('image', img_sample)
             k = cv2.waitKey(1) & 0xFF
             if k == ord("c"):
                 reset_state = True
@@ -208,30 +207,42 @@ def object_selector(video_capture):
     cv2.destroyAllWindows()
 
 
+def csv_output():
+    csv_out = []
+    temp = []
+    total_time = 0
+
+    for x in range(len(exp_obj)):
+        temp.append('obj' + str(x + 1))
+    temp.append('total')
+    csv_out.append(temp)
+    temp = []
+    for x in range(len(exp_obj)):
+        time = frame_marked_list.count(x) / fps
+        temp.append(time)
+        total_time = total_time + time
+    temp.append(total_time)
+    csv_out.append(temp)
+    print csv_out
+    with open("out_f.csv", 'wb') as myfile:
+        writer = csv.writer(myfile)
+        writer.writerows(csv_out)
+
+
 if __name__ == '__main__':
     path = os.path.dirname(__file__)
     normpath = os.path.normpath(path)
     file_name = 'out3.avi'
+    fps = 30
+    # noinspection PyArgumentList
     cap = cv2.VideoCapture(file_name)
-    ret, imgsample = cap.read()
-    stored_frame = imgsample.copy()
-
+    ret, img_sample = cap.read()
+    stored_frame = img_sample.copy()
     exp_obj = object_selector(cap)
     track_obj(COLOR_TRACKING, cap, exp_obj)
     cap.release()
     cv2.destroyAllWindows()
-    print "none: ", frame_markedlist.count(9)
-    print "obj1: ", frame_markedlist.count(0)
-    print "obj2: ", frame_markedlist.count(1)
-
-    # y = frame_markedlist
-    # N = len(y)
-    # x = range(N)
-    # width = 1 / 1.5
-    # plt.bar(x, y, width, color="blue")
-    #
-    # fig = plt.gcf()
-    # plot_url = py.plot_mpl(fig, filename='mpl-basic-bar')
-    with open("out_f.csv", 'wb') as myfile:
-        wr = csv.writer(myfile, quoting=csv.QUOTE_ALL)
-        wr.writerow(frame_markedlist)
+    csv_output()
+    # print "none: ", frame_marked_list.count(9)
+    # print "obj1: ", frame_marked_list.count(0)
+    # print "obj2: ", frame_marked_list`.count(1)
