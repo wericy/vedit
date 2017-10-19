@@ -39,7 +39,7 @@ def set_orientation(imgin, cx, cy, box):
     l2_p2 = box[3]
     d_1 = np.linalg.norm(np.cross(l1_p2 - l1_p1, l1_p1 - (cx, cy)) / np.linalg.norm(
         l1_p2 - l1_p1))  # distance between l1(one side of rectangle) and centroid
-    d_2 = np.linalg.norm(box[0] - box[1]) - d_1  # distance between centroid and the oppsite side of rectangle
+    d_2 = np.linalg.norm(box[0] - box[1]) - d_1  # distance between centroid and the opposite side of rectangle
     if d_1 > d_2:
         return midpoint(box[0], box[3]), midpoint(box[1], box[2]), 1
     else:
@@ -89,7 +89,9 @@ frame_marked_list = []
 
 
 def track_obj(working_mode, cv2_video_capture, obj_list):  # working mode: 0 for motion tracking, 1 for color tracking
+    global target_obj, frame_marked_list
     # print obj_list
+    frame_marked_list = []
     counter = 0
     head_voter = 0
     frame_no = 0
@@ -114,7 +116,7 @@ def track_obj(working_mode, cv2_video_capture, obj_list):  # working mode: 0 for
                     ellipse = cv2.fitEllipse(target_contour)
                     # enclosing rectangle
                     box = cv2.boxPoints(ellipse)
-                    # box = np.int0(box)
+                    box = np.int0(box)
                     (head_x, head_y), (head2_x, head2_y), vote = set_orientation(frame, cx, cy, box)
                     head_voter = head_voter + vote
                     if counter >= totalnum:
@@ -134,7 +136,6 @@ def track_obj(working_mode, cv2_video_capture, obj_list):  # working mode: 0 for
                             # frame_marked_list.append(9)
                         counter = 0
                         head_voter = 0
-                        # cv2.circle(frame, (head_x, head_y), 3, (102, 204, 255), 4)
                         # cv2.drawContours(frame, [box], 0, (200, 0, 100), 2)
                         # cv2.ellipse(frame, ellipse, (0, 255, 0), 2)
                     else:
@@ -147,7 +148,7 @@ def track_obj(working_mode, cv2_video_capture, obj_list):  # working mode: 0 for
             # cv2.imshow('frame', frame)
             counter = counter + 1
             frame_no = frame_no + 1
-            # k = cv2.waitKey(30) & 0xff
+            # k = cv2.waitKey(1) & 0xff
             # if k == ord("d"):
             #     break
             # elif k == 27:
@@ -155,7 +156,8 @@ def track_obj(working_mode, cv2_video_capture, obj_list):  # working mode: 0 for
         else:
             break
     # print "total: ", frame_no
-    cap.release()
+    # cap.release()
+    target_obj = []
     cv2.destroyAllWindows()
 
 
@@ -207,42 +209,95 @@ def object_selector(video_capture):
     cv2.destroyAllWindows()
 
 
-def csv_output():
+def csv_output(size, out_dict):
+    print "Writing data..."
     csv_out = []
     temp = []
     total_time = 0
 
-    for x in range(len(exp_obj)):
+    for x in range(size):
         temp.append('obj' + str(x + 1))
     temp.append('total')
     csv_out.append(temp)
     temp = []
-    for x in range(len(exp_obj)):
+    for x in range(size):
         time = frame_marked_list.count(x) / fps
         temp.append(time)
         total_time = total_time + time
     temp.append(total_time)
     csv_out.append(temp)
-    print csv_out
-    with open("out_f.csv", 'wb') as myfile:
+    # print csv_out
+    with open(os.path.join(out_dict, "out_f.csv"), 'ab') as myfile:
         writer = csv.writer(myfile)
         writer.writerows(csv_out)
 
 
-if __name__ == '__main__':
+def vsplit_to_three(filename, in1, in2, cvt_state):
+    print "Cutting video..."
+    file_name = filename
+    quoted_file_name = "\"{0}\"".format(file_name)
+    total_width = 1280
+    total_height = 720
+    sp1 = in1
+    sp2 = in2
+    v1_width = sp1
+    v2_width = sp2 - sp1
+    v3_width = total_width - sp2
+    start_v1 = 0
+    start_v2 = sp1
+    start_v3 = sp2
+
     path = os.path.dirname(__file__)
     normpath = os.path.normpath(path)
-    file_name = 'out3.avi'
-    fps = 30
+    output_folder = file_name + "_split"
+    output_folder_path = "\"" + normpath + "\\" + output_folder
+    if not cvt_state:
+        v_out1 = output_folder_path + "\out1.avi\""
+        v_out2 = output_folder_path + "\out2.avi\""
+        v_out3 = output_folder_path + "\out3.avi\""
+        if not os.path.exists(output_folder):
+            os.makedirs(output_folder)
+        command = "ffmpeg -i {0} -filter_complex \"[0:v]crop={1}:{2}:0:0[out1];\
+        [0:v]crop={3}:{4}:{5}:0[out2];\
+        [0:v]crop={6}:{7}:{8}:0[out3]\" \
+        -map [out1] -b:v 800000 {9} \
+        -map [out2] -b:v 800000 {10} \
+        -map [out3] -b:v 800000 {11}".format(
+            quoted_file_name, v1_width, total_height, v2_width, total_height, start_v2, v3_width, total_height,
+            start_v3,
+            v_out1, v_out2, v_out3)
+        os.system(command)
+    print "Video cutting done"
+    return output_folder_path.strip("\"")
+
+
+def analysis(file, out_dict):
+    global img_sample, stored_frame
     # noinspection PyArgumentList
-    cap = cv2.VideoCapture(file_name)
+    cap = cv2.VideoCapture(file)
     ret, img_sample = cap.read()
     stored_frame = img_sample.copy()
+    print "Please select object"
     exp_obj = object_selector(cap)
+    print "Analyzing..."
     track_obj(COLOR_TRACKING, cap, exp_obj)
     cap.release()
     cv2.destroyAllWindows()
-    csv_output()
-    # print "none: ", frame_marked_list.count(9)
-    # print "obj1: ", frame_marked_list.count(0)
-    # print "obj2: ", frame_marked_list`.count(1)
+    csv_output(len(exp_obj), out_dict)
+    print "Done"
+
+if __name__ == '__main__':
+    f_name = 'Video 2548 - test.wmv'
+    fps = 30
+    c_state = 0  # 0 for conversion, 1 for no conversion
+    out_path = vsplit_to_three(f_name, 320, 870, c_state)
+    # os.chdir(out_path)
+    print "output folder: ", out_path
+    for f in os.listdir(out_path):
+        if f.endswith(".avi"):
+            c_path = os.path.join(out_path, f)
+            print "Working on: ", c_path
+            print c_path
+            print out_path
+            analysis(c_path, out_path)
+            # analysis(os.path.join(out_path, "out2.avi"), out_path)
